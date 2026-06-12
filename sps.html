@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Privacy Shield</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+ 
+  :root {
+    --bg0: #080d14;
+    --bg1: #0d1520;
+    --bg2: #111e2e;
+    --bg3: #162438;
+    --bg4: #1c2e45;
+    --cyan: #00e5ff;
+    --cyan-dim: #00b8cc;
+    --cyan-glow: rgba(0,229,255,0.12);
+    --red: #ff4757;
+    --red-dim: #cc2233;
+    --red-glow: rgba(255,71,87,0.15);
+    --amber: #ffa502;
+    --green: #2ed573;
+    --purple: #7c5ff0;
+    --text0: #e8f4fd;
+    --text1: #8ba8c4;
+    --text2: #4d6880;
+    --border: rgba(0,229,255,0.1);
+    --border-red: rgba(255,71,87,0.2);
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Space Grotesk', sans-serif;
+  }
+ 
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+ 
+  body {
+    font-family: var(--sans);
+    background: var(--bg0);
+    color: var(--text0);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+ 
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+ 
+  .app { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100vh; }
+ 
+  /* ── Header ── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(8,13,20,0.9);
+    backdrop-filter: blur(12px);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+ 
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+ 
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+ 
+  .shield-svg { width: 36px; height: 36px; }
+ 
+  .logo-text {
+    display: flex;
+    flex-direction: column;
+  }
+ 
+  .logo-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text0);
+    letter-spacing: 0.02em;
+  }
+ 
+  .logo-sub {
+    font-size: 10px;
+    font-family: var(--mono);
+    color: var(--cyan);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+ 
+  .header-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-family: var(--mono);
+    color: var(--green);
+  }
+ 
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+ 
+  @keyframes pulse-dot {
+    0%,100% { opacity: 1; box-shadow: 0 0 0 0 rgba(46,213,115,0.4); }
+    50% { opacity: 0.7; box-shadow: 0 0 0 6px rgba(46,213,115,0); }
+  }
+ 
+  .header-time {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text2);
+  }
+ 
+  /* ── Tabs ── */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    padding: 12px 32px 0;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg0);
+  }
+ 
+  .tab {
+    padding: 8px 20px;
+    border: none;
+    background: transparent;
+    color: var(--text2);
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+ 
+  .tab:hover { color: var(--text1); }
+ 
+  .tab.active {
+    color: var(--cyan);
+    border-bottom-color: var(--cyan);
+  }
+ 
+  /* ── Main content ── */
+  main { flex: 1; padding: 28px 32px; max-width: 1200px; width: 100%; margin: 0 auto; }
+ 
+  .panel { display: none; }
+  .panel.active { display: block; }
+ 
+  /* ── Dashboard ── */
+  .dash-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+ 
+  .stat-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+ 
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--cyan);
+  }
+ 
+  .stat-card.danger::before { background: var(--red); }
+  .stat-card.warn::before { background: var(--amber); }
+  .stat-card.ok::before { background: var(--green); }
+ 
+  .stat-label {
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 8px;
+  }
+ 
+  .stat-value {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text0);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+ 
+  .stat-value.cyan { color: var(--cyan); }
+  .stat-value.red { color: var(--red); }
+  .stat-value.green { color: var(--green); }
+  .stat-value.amber { color: var(--amber); }
+ 
+  .stat-sub {
+    font-size: 12px;
+    color: var(--text2);
+  }
+ 
+  /* Pulse ring */
+  .pulse-container {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    display: flex;
+    align-items: center;
+    gap: 32px;
+    margin-bottom: 24px;
+  }
+ 
+  .pulse-ring-wrap {
+    position: relative;
+    width: 160px;
+    height: 160px;
+    flex-shrink: 0;
+  }
+ 
+  .pulse-ring-wrap canvas { position: absolute; inset: 0; }
+ 
+  .pulse-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+  }
+ 
+  .pulse-score {
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--green);
+    font-family: var(--mono);
+    line-height: 1;
+  }
+ 
+  .pulse-score.medium { color: var(--amber); }
+  .pulse-score.low { color: var(--red); }
+ 
+  .pulse-label {
+    font-size: 10px;
+    color: var(--text2);
+    font-family: var(--mono);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 4px;
+  }
+ 
+  .pulse-info { flex: 1; }
+ 
+  .pulse-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text0);
+    margin-bottom: 8px;
+  }
+ 
+  .pulse-desc {
+    font-size: 13px;
+    color: var(--text1);
+    line-height: 1.6;
+    margin-bottom: 16px;
+  }
+ 
+  .threat-bars { display: flex; flex-direction: column; gap: 8px; }
+ 
+  .threat-bar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+  }
+ 
+  .threat-bar-label { width: 130px; color: var(--text1); flex-shrink: 0; }
+ 
+  .threat-bar-track {
+    flex: 1;
+    height: 4px;
+    background: var(--bg4);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+ 
+  .threat-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 1s ease;
+  }
+ 
+  .threat-bar-val {
+    width: 32px;
+    text-align: right;
+    color: var(--text2);
+    font-family: var(--mono);
+    font-size: 11px;
+  }
+ 
+  /* Recent threats */
+  .section-title {
+    font-size: 13px;
+    font-family: var(--mono);
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+  }
+ 
+  .log-list {
+    background: var(--bg1);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+ 
+  .log-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 13px;
+    transition: background 0.15s;
+  }
+ 
+  .log-item:hover { background: var(--bg2); }
+  .log-item:last-child { border-bottom: none; }
+ 
+  .log-badge {
+    font-size: 10px;
+    font-family: var(--mono);
+    padding: 2px 7px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    flex-shrink: 0;
+  }
+ 
+  .log-badge.critical { background: rgba(255,71,87,0.2); color: var(--red); border: 1px solid var(--border-red); }
+  .log-badge.warn { background: rgba(255,165,2,0.15); color: var(--amber); border: 1px solid rgba(255,165,2,0.2); }
+  .log-badge.info { background: rgba(0,229,255,0.1); color: var(--cyan); border: 1px solid var(--border); }
+  .log-badge.ok { background: rgba(46,213,115,0.1); color: var(--green); border: 1px solid rgba(46,213,115,0.2); }
+ 
+  .log-msg { flex: 1; color: var(--text1); }
+  .log-msg strong { color: var(--text0); font-weight: 500; }
+ 
+  .log-time {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
+    flex-shrink: 0;
+  }
+ 
+  /* ── Live Monitor ── */
+  .monitor-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+ 
+  .monitor-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+ 
+  .monitor-card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text0);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+ 
+  .badge-live {
+    font-size: 9px;
+    font-family: var(--mono);
+    background: rgba(255,71,87,0.15);
+    color: var(--red);
+    border: 1px solid var(--border-red);
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    animation: blink 1.5s ease-in-out infinite;
+  }
+ 
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+ 
+  .keystroke-display {
+    background: var(--bg0);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    min-height: 80px;
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--cyan);
+    word-break: break-all;
+    line-height: 1.6;
+    position: relative;
+    overflow: hidden;
+  }
+ 
+  .caret {
+    display: inline-block;
+    width: 2px;
+    height: 14px;
+    background: var(--cyan);
+    vertical-align: middle;
+    animation: caret-blink 1s steps(1) infinite;
+  }
+ 
+  @keyframes caret-blink { 0%,100%{opacity:1} 50%{opacity:0} }
+ 
+  .process-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+ 
+  .process-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 10px;
+    background: var(--bg1);
+    border-radius: 6px;
+    border: 1px solid transparent;
+    transition: border-color 0.2s;
+  }
+ 
+  .process-item.suspicious { border-color: var(--border-red); background: rgba(255,71,87,0.05); }
+ 
+  .process-name { font-family: var(--mono); font-size: 12px; color: var(--text0); }
+  .process-pid { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+ 
+  .process-risk {
+    font-size: 10px;
+    font-family: var(--mono);
+    padding: 2px 6px;
+    border-radius: 3px;
+  }
+ 
+  .process-risk.high { background: rgba(255,71,87,0.15); color: var(--red); }
+  .process-risk.med { background: rgba(255,165,2,0.15); color: var(--amber); }
+  .process-risk.low { background: rgba(46,213,115,0.1); color: var(--green); }
+ 
+  .hook-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+ 
+  .hook-table th {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+ 
+  .hook-table td {
+    padding: 7px 8px;
+    color: var(--text1);
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-family: var(--mono);
+  }
+ 
+  .hook-table tr:last-child td { border-bottom: none; }
+  .hook-table tr:hover td { background: var(--bg3); }
+ 
+  .hook-status { display: flex; align-items: center; gap: 5px; }
+  .hook-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .hook-dot.green { background: var(--green); }
+  .hook-dot.red { background: var(--red); }
+  .hook-dot.amber { background: var(--amber); }
+ 
+  /* ── Scan ── */
+  .scan-hero {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 36px;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+ 
+  .scan-hero h2 {
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+ 
+  .scan-hero p {
+    color: var(--text1);
+    font-size: 14px;
+    margin-bottom: 24px;
+  }
+ 
+  .scan-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--cyan);
+    color: var(--bg0);
+    border: none;
+    border-radius: 8px;
+    padding: 12px 28px;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+  }
+ 
+  .scan-btn:hover { background: var(--cyan-dim); transform: translateY(-1px); }
+  .scan-btn:active { transform: translateY(0); }
+  .scan-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+ 
+  .scan-progress {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    display: none;
+  }
+ 
+  .scan-progress.visible { display: block; }
+ 
+  .scan-step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 13px;
+  }
+ 
+  .scan-step:last-child { border-bottom: none; }
+ 
+  .step-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    flex-shrink: 0;
+  }
+ 
+  .step-icon.pending { background: var(--bg4); color: var(--text2); }
+  .step-icon.running { background: rgba(0,229,255,0.15); color: var(--cyan); animation: spin 1s linear infinite; }
+  .step-icon.done { background: rgba(46,213,115,0.15); color: var(--green); }
+  .step-icon.found { background: rgba(255,71,87,0.15); color: var(--red); }
+ 
+  @keyframes spin { to { transform: rotate(360deg); } }
+ 
+  .step-text { flex: 1; color: var(--text1); }
+  .step-text strong { color: var(--text0); }
+  .step-result { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+ 
+  .scan-results {
+    display: none;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+ 
+  .scan-results.visible { display: grid; }
+ 
+  .result-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px;
+  }
+ 
+  .result-card.threat { border-color: var(--border-red); }
+ 
+  .result-card-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text0);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+ 
+  .result-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    font-size: 12px;
+  }
+ 
+  .result-item:last-child { border-bottom: none; }
+  .result-item-name { color: var(--text1); font-family: var(--mono); }
+  .result-item-val { color: var(--text2); }
+  .result-item-val.red { color: var(--red); font-weight: 500; }
+  .result-item-val.green { color: var(--green); }
+  .result-item-val.amber { color: var(--amber); }
+ 
+  /* ── Education ── */
+  .edu-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+ 
+  .edu-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+ 
+  .edu-card:hover { border-color: var(--cyan-dim); transform: translateY(-2px); }
+ 
+  .edu-card-icon {
+    font-size: 24px;
+    margin-bottom: 10px;
+    line-height: 1;
+  }
+ 
+  .edu-card h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text0);
+    margin-bottom: 6px;
+  }
+ 
+  .edu-card p {
+    font-size: 12px;
+    color: var(--text1);
+    line-height: 1.6;
+  }
+ 
+  .edu-detail {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+ 
+  .edu-detail h2 {
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--cyan);
+  }
+ 
+  .edu-detail p {
+    font-size: 13px;
+    color: var(--text1);
+    line-height: 1.7;
+    margin-bottom: 14px;
+  }
+ 
+  .code-block {
+    background: var(--bg0);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--cyan);
+    line-height: 1.7;
+    white-space: pre;
+    overflow-x: auto;
+    margin-bottom: 14px;
+  }
+ 
+  .code-comment { color: var(--text2); }
+  .code-keyword { color: var(--purple); }
+  .code-string { color: var(--amber); }
+  .code-func { color: var(--green); }
+ 
+  .method-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+ 
+  .method-list li {
+    display: flex;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--bg1);
+    border-radius: 8px;
+    border-left: 3px solid var(--cyan);
+    font-size: 13px;
+    color: var(--text1);
+  }
+ 
+  .method-list li.red-border { border-left-color: var(--red); }
+  .method-list li.amber-border { border-left-color: var(--amber); }
+  .method-list li strong { color: var(--text0); display: block; font-size: 12px; margin-bottom: 2px; }
+ 
+  /* Buttons / controls */
+  .btn-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+ 
+  .btn {
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg3);
+    color: var(--text1);
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+ 
+  .btn:hover { background: var(--bg4); color: var(--text0); border-color: var(--cyan-dim); }
+  .btn.active { background: rgba(0,229,255,0.1); color: var(--cyan); border-color: var(--cyan); }
+ 
+  .btn-danger {
+    border-color: var(--border-red);
+    color: var(--red);
+    background: rgba(255,71,87,0.05);
+  }
+ 
+  .btn-danger:hover { background: rgba(255,71,87,0.12); color: var(--red); border-color: var(--red); }
+ 
+  /* Progress bar for scan */
+  .progress-bar-wrap {
+    height: 4px;
+    background: var(--bg4);
+    border-radius: 2px;
+    overflow: hidden;
+    margin: 12px 0;
+  }
+ 
+  .progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--cyan), var(--purple));
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.4s ease;
+  }
+ 
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg0); }
+  ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text2); }
+ 
+  /* Animations */
+  .fade-in { animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+ 
+  /* Responsive */
+  @media (max-width: 768px) {
+    header { padding: 12px 16px; }
+    main { padding: 16px; }
+    .tabs { padding: 8px 16px 0; overflow-x: auto; }
+    .dash-grid { grid-template-columns: 1fr 1fr; }
+    .monitor-grid, .edu-grid, .scan-results { grid-template-columns: 1fr; }
+    .pulse-container { flex-direction: column; text-align: center; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+ 
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">
+        <svg class="shield-svg" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M18 3L6 8v10c0 7 5.3 13.5 12 15 6.7-1.5 12-8 12-15V8L18 3z" fill="rgba(0,229,255,0.12)" stroke="#00e5ff" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M13 18l3.5 3.5L23 14" stroke="#00e5ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div class="logo-text">
+        <span class="logo-name">Smart Privacy Shield</span>
+        <span class="logo-sub">v2.4.1</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:20px;">
+      <div class="header-status">
+        <div class="status-dot"></div>
+        <span id="hdr-status">PROTECTED</span>
+      </div>
+      <div class="header-time" id="clock">--:--:--</div>
+    </div>
+  </header>
+ 
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('dashboard',this)">Dashboard</button>
+    <button class="tab" onclick="switchTab('monitor',this)">Live Monitor</button>
+    <button class="tab" onclick="switchTab('scan',this)">System Scan</button>
+    <button class="tab" onclick="switchTab('education',this)">Education</button>
+  </div>
+ 
+  <main>
+ 
+    <!-- ══════════════ DASHBOARD ══════════════ -->
+    <div class="panel active fade-in" id="panel-dashboard">
+ 
+      <!-- Stat cards -->
+      <div class="dash-grid">
+        <div class="stat-card ok">
+          <div class="stat-label">Protection Score</div>
+          <div class="stat-value green" id="score-val">94</div>
+          <div class="stat-sub">System well-protected</div>
+        </div>
+        <div class="stat-card danger">
+          <div class="stat-label">Threats Detected</div>
+          <div class="stat-value red" id="threat-count">3</div>
+          <div class="stat-sub">In last 24 hours</div>
+        </div>
+        <div class="stat-card warn">
+          <div class="stat-label">Hooks Monitored</div>
+          <div class="stat-value amber">12</div>
+          <div class="stat-sub">Keyboard + mouse hooks</div>
+        </div>
+      </div>
+ 
+      <!-- Pulse ring + threat bars -->
+      <div class="pulse-container">
+        <div class="pulse-ring-wrap">
+          <canvas id="pulseCanvas" width="160" height="160"></canvas>
+          <div class="pulse-center">
+            <div class="pulse-score" id="pulse-score">94</div>
+            <div class="pulse-label">SHIELD</div>
+          </div>
+        </div>
+        <div class="pulse-info">
+          <div class="pulse-title">System Security Overview</div>
+          <div class="pulse-desc">Your system is actively being monitored for keylogger activity, suspicious hooks, and input-capture processes. All known attack vectors are currently blocked.</div>
+          <div class="threat-bars">
+            <div class="threat-bar-row">
+              <span class="threat-bar-label">Keyboard hooks</span>
+              <div class="threat-bar-track"><div class="threat-bar-fill" style="width:15%;background:var(--green)"></div></div>
+              <span class="threat-bar-val">15%</span>
+            </div>
+            <div class="threat-bar-row">
+              <span class="threat-bar-label">Process injection</span>
+              <div class="threat-bar-track"><div class="threat-bar-fill" style="width:8%;background:var(--green)"></div></div>
+              <span class="threat-bar-val">8%</span>
+            </div>
+            <div class="threat-bar-row">
+              <span class="threat-bar-label">Network exfiltration</span>
+              <div class="threat-bar-track"><div class="threat-bar-fill" style="width:62%;background:var(--amber)"></div></div>
+              <span class="threat-bar-val">62%</span>
+            </div>
+            <div class="threat-bar-row">
+              <span class="threat-bar-label">Clipboard sniffing</span>
+              <div class="threat-bar-track"><div class="threat-bar-fill" style="width:5%;background:var(--green)"></div></div>
+              <span class="threat-bar-val">5%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+ 
+      <!-- Recent events -->
+      <div class="section-title">Recent Security Events</div>
+      <div class="log-list" id="event-log">
+        <div class="log-item">
+          <span class="log-badge warn">WARN</span>
+          <span class="log-msg"><strong>Suspicious process</strong> — python3 reading /dev/input/event0</span>
+          <span class="log-time" id="t1">14:32:11</span>
+        </div>
+        <div class="log-item">
+          <span class="log-badge info">INFO</span>
+          <span class="log-msg"><strong>SetWindowsHookEx</strong> called by chrome.exe (keyboard hook)</span>
+          <span class="log-time" id="t2">14:28:44</span>
+        </div>
+        <div class="log-item">
+          <span class="log-badge ok">BLOCKED</span>
+          <span class="log-msg"><strong>keylogger.py</strong> — attempt to install global keyboard hook blocked</span>
+          <span class="log-time" id="t3">14:21:08</span>
+        </div>
+        <div class="log-item">
+          <span class="log-badge critical">CRITICAL</span>
+          <span class="log-msg"><strong>Network activity</strong> — pynput process sending data to 192.168.1.45:8080</span>
+          <span class="log-time" id="t4">14:18:55</span>
+        </div>
+        <div class="log-item">
+          <span class="log-badge info">INFO</span>
+          <span class="log-msg"><strong>Scan complete</strong> — 0 active keyloggers in memory at startup</span>
+          <span class="log-time" id="t5">14:00:03</span>
+        </div>
+      </div>
+ 
+    </div>
+ 
+    <!-- ══════════════ LIVE MONITOR ══════════════ -->
+    <div class="panel fade-in" id="panel-monitor">
+ 
+      <div class="btn-row">
+        <button class="btn active" id="monStartBtn" onclick="toggleMonitor()">⏹ Stop monitoring</button>
+        <button class="btn" onclick="clearKeyDisplay()">Clear display</button>
+        <button class="btn btn-danger" onclick="simulateThreat()">Simulate threat</button>
+      </div>
+ 
+      <div class="monitor-grid">
+        <!-- Keystroke capture demo -->
+        <div class="monitor-card">
+          <div class="monitor-card-title">
+            Keystroke Capture Demo
+            <span class="badge-live">live</span>
+          </div>
+          <p style="font-size:12px;color:var(--text2);margin-bottom:10px;">Type anything below — this simulates what a keylogger captures from your session.</p>
+          <input type="text" id="keyInput" placeholder="Type here to demo keystroke capture..."
+            style="width:100%;background:var(--bg0);border:1px solid var(--border);border-radius:6px;padding:8px 12px;color:var(--text0);font-family:var(--mono);font-size:13px;margin-bottom:10px;outline:none;"
+            oninput="captureKey(event)">
+          <div class="keystroke-display" id="keyDisplay">
+            <span style="color:var(--text2);font-size:12px;">// Captured keystrokes will appear here</span><span class="caret"></span>
+          </div>
+        </div>
+ 
+        <!-- Process monitor -->
+        <div class="monitor-card">
+          <div class="monitor-card-title">
+            Suspicious Processes
+            <span class="badge-live">live</span>
+          </div>
+          <div class="process-list" id="processList">
+            <div class="process-item suspicious">
+              <span class="process-name">python3</span>
+              <span class="process-pid">PID 3847</span>
+              <span class="process-risk high">HIGH</span>
+            </div>
+            <div class="process-item">
+              <span class="process-name">chrome.exe</span>
+              <span class="process-pid">PID 2104</span>
+              <span class="process-risk med">MED</span>
+            </div>
+            <div class="process-item">
+              <span class="process-name">node</span>
+              <span class="process-pid">PID 4521</span>
+              <span class="process-risk low">LOW</span>
+            </div>
+            <div class="process-item">
+              <span class="process-name">slack</span>
+              <span class="process-pid">PID 1983</span>
+              <span class="process-risk low">LOW</span>
+            </div>
+            <div class="process-item">
+              <span class="process-name">svchost.exe</span>
+              <span class="process-pid">PID 512</span>
+              <span class="process-risk low">LOW</span>
+            </div>
+          </div>
+        </div>
+      </div>
+ 
+      <!-- Hook table -->
+      <div class="monitor-card" style="margin-bottom:16px;">
+        <div class="monitor-card-title">Active System Hooks (WinAPI / Linux input)</div>
+        <table class="hook-table">
+          <thead>
+            <tr>
+              <th>Hook Type</th>
+              <th>API Call</th>
+              <th>Process</th>
+              <th>Status</th>
+              <th>Risk</th>
+            </tr>
+          </thead>
+          <tbody id="hookTable">
+            <tr>
+              <td>WH_KEYBOARD_LL</td>
+              <td>SetWindowsHookEx</td>
+              <td>chrome.exe</td>
+              <td><div class="hook-status"><div class="hook-dot amber"></div>Allowed</div></td>
+              <td><span style="color:var(--amber)">Medium</span></td>
+            </tr>
+            <tr>
+              <td>WH_KEYBOARD</td>
+              <td>SetWindowsHookEx</td>
+              <td>python3</td>
+              <td><div class="hook-status"><div class="hook-dot red"></div>Blocked</div></td>
+              <td><span style="color:var(--red)">Critical</span></td>
+            </tr>
+            <tr>
+              <td>/dev/input</td>
+              <td>open() read()</td>
+              <td>evtest</td>
+              <td><div class="hook-status"><div class="hook-dot green"></div>Monitored</div></td>
+              <td><span style="color:var(--green)">Low</span></td>
+            </tr>
+            <tr>
+              <td>WH_MOUSE_LL</td>
+              <td>SetWindowsHookEx</td>
+              <td>slack</td>
+              <td><div class="hook-status"><div class="hook-dot green"></div>Allowed</div></td>
+              <td><span style="color:var(--green)">Low</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+ 
+      <!-- Network activity -->
+      <div class="monitor-card">
+        <div class="monitor-card-title">Network Activity (Potential Exfiltration)</div>
+        <div id="networkLog" style="font-family:var(--mono);font-size:12px;color:var(--text1);line-height:1.8;">
+          <span style="color:var(--green)">[14:32:44]</span> chrome.exe → 142.250.80.46:443 (HTTPS — normal)<br>
+          <span style="color:var(--red)">[14:31:22]</span> python3 → 192.168.1.45:8080 (plain HTTP — suspicious!)<br>
+          <span style="color:var(--green)">[14:29:10]</span> slack → 52.80.122.3:443 (HTTPS — normal)<br>
+          <span style="color:var(--amber)">[14:28:55]</span> node → 127.0.0.1:3000 (localhost — OK)<br>
+        </div>
+      </div>
+ 
+    </div>
+ 
+    <!-- ══════════════ SCAN ══════════════ -->
+    <div class="panel fade-in" id="panel-scan">
+ 
+      <div class="scan-hero">
+        <h2>System Keylogger Scan</h2>
+        <p>Deep scan for keylogger signatures, suspicious hooks, injected DLLs, and input-monitoring processes</p>
+        <button class="scan-btn" id="scanBtn" onclick="startScan()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+          Start Deep Scan
+        </button>
+      </div>
+ 
+      <div class="scan-progress" id="scanProgress">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:13px;font-weight:600;color:var(--text0);">Scanning...</span>
+          <span style="font-family:var(--mono);font-size:12px;color:var(--cyan);" id="scanPct">0%</span>
+        </div>
+        <div class="progress-bar-wrap"><div class="progress-bar-fill" id="scanBar"></div></div>
+        <div id="scanSteps"></div>
+      </div>
+ 
+      <div class="scan-results" id="scanResults">
+        <div class="result-card">
+          <div class="result-card-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Scan Summary
+          </div>
+          <div class="result-item"><span class="result-item-name">Files scanned</span><span class="result-item-val green">8,432</span></div>
+          <div class="result-item"><span class="result-item-name">Processes checked</span><span class="result-item-val green">87</span></div>
+          <div class="result-item"><span class="result-item-name">Registry keys</span><span class="result-item-val green">1,204</span></div>
+          <div class="result-item"><span class="result-item-name">Hooks analysed</span><span class="result-item-val green">12</span></div>
+          <div class="result-item"><span class="result-item-name">Scan duration</span><span class="result-item-val">4.2 sec</span></div>
+        </div>
+        <div class="result-card threat">
+          <div class="result-card-title">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            Findings
+          </div>
+          <div class="result-item"><span class="result-item-name">pynput process active</span><span class="result-item-val red">FLAGGED</span></div>
+          <div class="result-item"><span class="result-item-name">WH_KEYBOARD_LL hook</span><span class="result-item-val amber">WARNING</span></div>
+          <div class="result-item"><span class="result-item-name">Unencrypted log file</span><span class="result-item-val amber">WARNING</span></div>
+          <div class="result-item"><span class="result-item-name">Clipboard access</span><span class="result-item-val green">CLEAN</span></div>
+          <div class="result-item"><span class="result-item-name">Rootkit signatures</span><span class="result-item-val green">CLEAN</span></div>
+        </div>
+      </div>
+ 
+    </div>
+ 
+    <!-- ══════════════ EDUCATION ══════════════ -->
+    <div class="panel fade-in" id="panel-education">
+ 
+      <div class="edu-grid">
+        <div class="edu-card" onclick="showEdu('types')">
+          <div class="edu-card-icon">🔑</div>
+          <h3>Types of Keyloggers</h3>
+          <p>Software, hardware, kernel-level, form-grabbing — learn how each works technically.</p>
+        </div>
+        <div class="edu-card" onclick="showEdu('code')">
+          <div class="edu-card-icon">💻</div>
+          <h3>How They're Built (Python)</h3>
+          <p>See the actual code pattern used by software keyloggers — and why it's dangerous.</p>
+        </div>
+        <div class="edu-card" onclick="showEdu('detect')">
+          <div class="edu-card-icon">🛡️</div>
+          <h3>Detection Methods</h3>
+          <p>How tools like this one detect keylogger activity — hooks, process analysis, signatures.</p>
+        </div>
+        <div class="edu-card" onclick="showEdu('legal')">
+          <div class="edu-card-icon">⚖️</div>
+          <h3>Legal & Ethical Use</h3>
+          <p>IT Act 2000 (India), consent requirements, legitimate uses in parental control & MDM.</p>
+        </div>
+      </div>
+ 
+      <div class="edu-detail" id="eduDetail">
+        <h2>Select a topic above to learn</h2>
+        <p>This Education module explains keylogger concepts for academic and cybersecurity learning purposes. All information here is for understanding threats and building better defenses.</p>
+      </div>
+ 
+    </div>
+ 
+  </main>
+</div>
+ 
+<script>
+// ── Clock ──
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent =
+    now.toLocaleTimeString('en-IN', { hour12: false });
+}
+updateClock();
+setInterval(updateClock, 1000);
+ 
+// ── Tab switching ──
+function switchTab(name, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active', 'fade-in');
+  btn.classList.add('active');
+}
+ 
+// ── Pulse ring canvas ──
+const canvas = document.getElementById('pulseCanvas');
+const ctx = canvas.getContext('2d');
+let angle = 0;
+let score = 94;
+ 
+function drawPulse() {
+  ctx.clearRect(0, 0, 160, 160);
+  const cx = 80, cy = 80, r = 64;
+ 
+  // Background track
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 8;
+  ctx.stroke();
+ 
+  // Score arc
+  const pct = score / 100;
+  const color = score >= 80 ? '#2ed573' : score >= 50 ? '#ffa502' : '#ff4757';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * pct);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 8;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+ 
+  // Spinning dot
+  angle += 0.012;
+  const dotX = cx + r * Math.cos(angle);
+  const dotY = cy + r * Math.sin(angle);
+  ctx.beginPath();
+  ctx.arc(dotX, dotY, 4, 0, Math.PI * 2);
+  ctx.fillStyle = '#00e5ff';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(dotX, dotY, 8, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,229,255,0.15)';
+  ctx.fill();
+ 
+  requestAnimationFrame(drawPulse);
+}
+drawPulse();
+ 
+// ── Live Monitor ──
+let monitoring = true;
+let keyBuffer = [];
+const keyDisplay = document.getElementById('keyDisplay');
+ 
+function captureKey(e) {
+  if (!monitoring) return;
+  const val = e.target.value;
+  const ts = new Date().toLocaleTimeString('en-IN', { hour12: false });
+  keyDisplay.innerHTML = '';
+  keyDisplay.innerHTML += `<span style="color:var(--text2);font-size:11px;">[${ts}] captured: </span>`;
+  keyDisplay.innerHTML += `<span style="color:var(--cyan);">${escHtml(val)}</span>`;
+  keyDisplay.innerHTML += `<span class="caret"></span>`;
+}
+ 
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+ 
+function clearKeyDisplay() {
+  document.getElementById('keyInput').value = '';
+  keyDisplay.innerHTML = '<span style="color:var(--text2);font-size:12px;">// Display cleared</span><span class="caret"></span>';
+}
+ 
+function toggleMonitor() {
+  monitoring = !monitoring;
+  const btn = document.getElementById('monStartBtn');
+  btn.textContent = monitoring ? '⏹ Stop monitoring' : '▶ Start monitoring';
+  btn.classList.toggle('active', monitoring);
+}
+ 
+function simulateThreat() {
+  const proc = document.getElementById('processList');
+  const item = document.createElement('div');
+  item.className = 'process-item suspicious fade-in';
+  item.innerHTML = `
+    <span class="process-name">keylogger.py</span>
+    <span class="process-pid">PID ${3000 + Math.floor(Math.random() * 999)}</span>
+    <span class="process-risk high">CRITICAL</span>
+  `;
+  proc.insertBefore(item, proc.firstChild);
+ 
+  // Add to network log
+  const ts = new Date().toLocaleTimeString('en-IN', { hour12: false });
+  const nl = document.getElementById('networkLog');
+  nl.innerHTML = `<span style="color:var(--red)">[${ts}]</span> keylogger.py → attacker.net:9001 (data exfil — <strong style="color:var(--red)">BLOCKED</strong>)<br>` + nl.innerHTML;
+ 
+  // Update header
+  document.getElementById('hdr-status').textContent = 'THREAT DETECTED';
+  document.getElementById('hdr-status').style.color = 'var(--red)';
+  setTimeout(() => {
+    document.getElementById('hdr-status').textContent = 'PROTECTED';
+    document.getElementById('hdr-status').style.color = '';
+  }, 4000);
+}
+ 
+// ── System Scan ──
+const scanStepsData = [
+  { label: 'Scanning running processes', detail: '87 processes found' },
+  { label: 'Checking keyboard hooks (WinAPI)', detail: '12 hooks active' },
+  { label: 'Analysing /dev/input access', detail: '3 readers found' },
+  { label: 'Signature database matching', detail: '14,200 signatures checked' },
+  { label: 'Checking network connections', detail: '1 suspicious connection' },
+  { label: 'Scanning registry startup keys', detail: '1,204 keys checked' },
+  { label: 'DLL injection check', detail: 'No injections found' },
+  { label: 'Clipboard monitor detection', detail: 'Clean' },
+];
+ 
+function startScan() {
+  document.getElementById('scanBtn').disabled = true;
+  document.getElementById('scanResults').classList.remove('visible');
+  const prog = document.getElementById('scanProgress');
+  prog.classList.add('visible');
+  const stepsEl = document.getElementById('scanSteps');
+  stepsEl.innerHTML = '';
+ 
+  // Create step rows
+  scanStepsData.forEach((s, i) => {
+    const div = document.createElement('div');
+    div.className = 'scan-step';
+    div.id = 'step-' + i;
+    div.innerHTML = `
+      <div class="step-icon pending" id="sicon-${i}">○</div>
+      <div class="step-text"><strong>${s.label}</strong></div>
+      <div class="step-result" id="sres-${i}"></div>
+    `;
+    stepsEl.appendChild(div);
+  });
+ 
+  let i = 0;
+  function runStep() {
+    if (i >= scanStepsData.length) {
+      document.getElementById('scanBar').style.width = '100%';
+      document.getElementById('scanPct').textContent = '100%';
+      setTimeout(() => {
+        prog.classList.remove('visible');
+        document.getElementById('scanResults').classList.add('visible');
+        document.getElementById('scanBtn').disabled = false;
+      }, 600);
+      return;
+    }
+    const icon = document.getElementById('sicon-' + i);
+    const res = document.getElementById('sres-' + i);
+    icon.className = 'step-icon running';
+    icon.textContent = '↻';
+ 
+    const pct = Math.round((i / scanStepsData.length) * 100);
+    document.getElementById('scanBar').style.width = pct + '%';
+    document.getElementById('scanPct').textContent = pct + '%';
+ 
+    setTimeout(() => {
+      const isFound = i === 1 || i === 4;
+      icon.className = isFound ? 'step-icon found' : 'step-icon done';
+      icon.textContent = isFound ? '!' : '✓';
+      res.textContent = scanStepsData[i].detail;
+      res.style.color = isFound ? 'var(--red)' : 'var(--green)';
+      i++;
+      setTimeout(runStep, 260 + Math.random() * 180);
+    }, 500 + Math.random() * 300);
+  }
+  runStep();
+}
+ 
+// ── Education content ──
+const eduContent = {
+  types: {
+    title: 'Types of Keyloggers',
+    html: `
+      <p>Keyloggers are broadly categorized by <strong>where they intercept input</strong> in the system stack. Understanding each type is essential for building detection tools.</p>
+      <ul class="method-list">
+        <li><div><strong>User-space software (pynput, pyHook)</strong>Uses OS-level APIs to register an event listener. Easy to build in Python, easily detectable by hook enumeration.</div></li>
+        <li class="amber-border"><div><strong>Kernel-level / driver keyloggers</strong>Installs as a kernel driver, intercepts keystrokes before user-space ever sees them. Much harder to detect. Used in advanced malware.</div></li>
+        <li class="red-border"><div><strong>Hardware keyloggers</strong>Physical USB/PS2 device between keyboard and PC. Completely invisible to any OS-level scan — only physical inspection reveals them.</div></li>
+        <li><div><strong>Form-grabbing keyloggers</strong>Hooks into browser APIs to capture form data before encryption. Bypasses HTTPS entirely. Used by banking trojans.</div></li>
+        <li class="amber-border"><div><strong>Acoustic / EM keyloggers</strong>Academic research only — acoustic analysis of keystrokes or electromagnetic emissions. Highly specialized.</div></li>
+      </ul>`
+  },
+  code: {
+    title: 'How a Software Keylogger Works (Python)',
+    html: `
+      <p>A basic software keylogger uses the <code style="font-family:var(--mono);color:var(--cyan);font-size:12px;">pynput</code> library to register a global keyboard listener. Here's the exact pattern — and why each part is detectable:</p>
+      <div class="code-block"><span class="code-comment"># Educational example — do not use without consent</span>
+<span class="code-keyword">from</span> pynput <span class="code-keyword">import</span> keyboard
+<span class="code-keyword">import</span> datetime, os
+ 
+log_file = <span class="code-string">"/tmp/keylog.txt"</span>  <span class="code-comment"># ← detectable: file creation</span>
+ 
+<span class="code-keyword">def</span> <span class="code-func">on_press</span>(key):
+    ts = datetime.datetime.now().strftime(<span class="code-string">"%H:%M:%S"</span>)
+    <span class="code-keyword">try</span>:
+        entry = f<span class="code-string">"[{ts}] {key.char}\n"</span>
+    <span class="code-keyword">except</span> AttributeError:
+        entry = f<span class="code-string">"[{ts}] {key}\n"</span>
+    <span class="code-keyword">with</span> open(log_file, <span class="code-string">'a'</span>) <span class="code-keyword">as</span> f:
+        f.write(entry)  <span class="code-comment"># ← detectable: disk I/O pattern</span>
+ 
+<span class="code-comment"># ← detectable: SetWindowsHookEx / /dev/input</span>
+<span class="code-keyword">with</span> keyboard.Listener(on_press=on_press) <span class="code-keyword">as</span> l:
+    l.join()  <span class="code-comment"># ← detectable: long-running listener process</span></div>
+      <p>Detection vectors: <strong>hook enumeration</strong> (SetWindowsHookEx shows in hook list), <strong>process scanning</strong> (python3 with keyboard listener), <strong>file access monitoring</strong> (log file writes), and <strong>network monitoring</strong> if logs are emailed/sent.</p>`
+  },
+  detect: {
+    title: 'Detection Methods Used in This Tool',
+    html: `
+      <p>Smart Privacy Shield uses a layered detection approach, combining multiple signals to minimize false positives while catching real threats.</p>
+      <ul class="method-list">
+        <li><div><strong>Hook enumeration (WinAPI)</strong>EnumThreadWindows + GetWindowsHookEx to list all active WH_KEYBOARD_LL and WH_KEYBOARD hooks. Any unexpected process owning a keyboard hook is flagged.</div></li>
+        <li><div><strong>Process behavior analysis</strong>Scans running processes for keyboard library imports (pynput, pyHook, keyboard), long-running listener threads, and high disk I/O from non-UI processes.</div></li>
+        <li class="amber-border"><div><strong>/dev/input monitoring (Linux)</strong>Tracks which processes have opened /dev/input/event* files. Legitimate reads (X11, Wayland) are whitelisted; unknown readers are flagged.</div></li>
+        <li><div><strong>Network exfiltration detection</strong>Monitors outgoing connections from processes that also hold keyboard hooks. Plain HTTP from such processes is a strong signal.</div></li>
+        <li class="amber-border"><div><strong>Signature-based scanning</strong>Compares loaded DLLs, open file handles, and process names against a database of known keylogger signatures and patterns.</div></li>
+      </ul>`
+  },
+  legal: {
+    title: 'Legal & Ethical Guidelines (India)',
+    html: `
+      <p>In India, keyloggers are regulated under the <strong>IT Act 2000</strong> and its 2008 amendments. Understanding the legal landscape is critical before any project demo.</p>
+      <ul class="method-list">
+        <li class="red-border"><div><strong>Section 43 — Unauthorized access</strong>Installing a keylogger on someone else's device without consent is illegal. Penalty: up to ₹1 crore in compensation.</div></li>
+        <li class="red-border"><div><strong>Section 66 — Computer-related offences</strong>Dishonestly or fraudulently capturing keystrokes from another's system: up to 3 years imprisonment.</div></li>
+        <li class="amber-border"><div><strong>Section 72 — Breach of confidentiality</strong>Accessing information obtained from a system without authorization and disclosing it: up to 2 years imprisonment.</div></li>
+        <li><div><strong>Legitimate uses (with consent)</strong>Parental control on child's device (with disclosure), employee monitoring (written policy + consent), MDM on corporate-owned devices, your own device for research.</div></li>
+        <li><div><strong>College project requirements</strong>Run only on your own machine or a dedicated lab VM. Get written supervisor approval. Use synthetic/dummy data — never capture real user input.</div></li>
+      </ul>`
+  }
+};
+ 
+function showEdu(key) {
+  const d = document.getElementById('eduDetail');
+  const c = eduContent[key];
+  d.innerHTML = `<h2>${c.title}</h2>${c.html}`;
+  d.classList.add('fade-in');
+}
+</script>
+</body>
+</html>
